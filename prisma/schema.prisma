@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String             @id @default(cuid())
+  name           String
+  email          String             @unique
+  passwordHash   String
+  college        String
+  branch         String
+  graduationYear Int
+  isAdmin        Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  attempts       QuestionAttempt[]
+  plans          PreparationPlan[]
+  interviews     MockInterview[]
+}
+
+model Company {
+  id           String                @id @default(cuid())
+  name         String                @unique
+  logo         String?
+  description  String?
+  roles        Role[]
+  experiences InterviewExperience[]
+  questions    Question[]
+  interviews   MockInterview[]
+  plans        PreparationPlan[]
+}
+
+model Role {
+  id          String                @id @default(cuid())
+  title       String
+  companyId   String
+  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  experiences InterviewExperience[]
+  questions   Question[]
+  plans       PreparationPlan[]
+  interviews  MockInterview[]
+
+  @@unique([title, companyId])
+  @@index([companyId])
+}
+
+model InterviewExperience {
+  id          String     @id @default(cuid())
+  companyId   String
+  roleId      String
+  college     String
+  year        Int
+  round       String
+  description String
+  isAnonymous Boolean    @default(true)
+  status      String     @default("PENDING")
+  sourceType  String     @default("COMMUNITY")
+  createdAt   DateTime   @default(now())
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role        Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  questions   Question[]
+
+  @@index([companyId, roleId, college, status])
+}
+
+model Question {
+  id           String                 @id @default(cuid())
+  companyId    String
+  roleId       String
+  experienceId String?
+  text         String
+  topic        String
+  pattern      String
+  difficulty   String
+  round        String
+  sourceType   String                 @default("DEMO_HISTORICAL_DATA")
+  frequency    Int                    @default(1)
+  company      Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role         Role                   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  experience   InterviewExperience?   @relation(fields: [experienceId], references: [id], onDelete: SetNull)
+  attempts     QuestionAttempt[]
+
+  @@index([companyId, roleId, topic, difficulty, round])
+  @@index([experienceId])
+}
+
+model QuestionAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  isCorrect  Boolean
+  score      Float
+  timeTaken  Int
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model PreparationPlan {
+  id        String             @id @default(cuid())
+  userId    String
+  companyId String
+  roleId    String
+  duration  Int                @default(7)
+  createdAt DateTime           @default(now())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      Role               @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  tasks     PreparationTask[]
+
+  @@index([userId, createdAt])
+}
+
+model PreparationTask {
+  id        String          @id @default(cuid())
+  planId    String
+  day       Int
+  topic     String
+  title     String
+  completed Boolean         @default(false)
+  plan      PreparationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
+model MockInterview {
+  id        String                  @id @default(cuid())
+  userId    String
+  companyId String
+  roleId    String
+  score     Float?
+  createdAt DateTime                @default(now())
+  user      User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      Role                    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  questions MockInterviewQuestion[]
+
+  @@index([userId, createdAt])
+}
+
+model MockInterviewQuestion {
+  id              String        @id @default(cuid())
+  mockInterviewId String
+  question        String
+  answer          String?
+  evaluation      String?
+  score           Float?
+  mockInterview  MockInterview @relation(fields: [mockInterviewId], references: [id], onDelete: Cascade)
+}
